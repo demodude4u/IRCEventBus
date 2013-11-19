@@ -14,7 +14,7 @@ public class SillyFeature {
 	private final IRCProtocol protocol;
 
 	@Inject
-	public SillyFeature(@Named("IRC") EventBus bus, IRCProtocol protocol) {
+	SillyFeature(@Named("IRC") EventBus bus, IRCProtocol protocol) {
 		this.bus = bus;
 		this.protocol = protocol;
 		bus.register(this);
