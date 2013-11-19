@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/jre7"/>
+	<classpathentry kind="lib" path="guava-14.0.1.jar" sourcepath="guava-14.0.1-sources.jar">
+		<attributes>
+			<attribute name="javadoc_location" value="jar:platform:/resource/IRCEventBus/guava-14.0.1-javadoc.jar!/"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="aopalliance.jar"/>
+	<classpathentry kind="lib" path="guice-3.0.jar" sourcepath="guice-3.0-sources.zip"/>
+	<classpathentry kind="lib" path="javax.inject.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
