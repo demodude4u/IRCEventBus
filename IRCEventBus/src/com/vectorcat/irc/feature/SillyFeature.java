@@ -21,6 +21,13 @@ public class SillyFeature {
 	}
 
 	@Subscribe
+	public void onEchoFaggot(IRCRecvChannelMessage event) {
+		if (event.getNickname().equals("domeD")) {
+			bus.post(new IRCSendMessage(event.getChannel(), "!RACECAR!"));
+		}
+	}
+
+	@Subscribe
 	public void onInkrementSayingMyName(IRCRecvChannelMessage event) {
 		String lowerNickname = protocol.getMyNickname().toLowerCase();
 		String lowerMessage = event.getMessage().toLowerCase();

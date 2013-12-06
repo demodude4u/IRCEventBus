@@ -58,28 +58,34 @@ public class Main {
 		EventBus bus = injector.getInstance(Key.get(EventBus.class,
 				Names.named("IRC")));
 
+		// Prints out send and recv, optional
 		bus.register(createEventLogger());
 
 		IRCControl control = injector.getInstance(IRCControl.class);
 
-		// Features
+		// Initialize Features
 		injector.getInstance(SillyFeature.class);
 
 		try {
 
-			control.connect("irc.fyrechat.net", 6667, "DemodBot", "rye2bot");
+			// Initial actions
+			control.connect("irc.fyrechat.net", 6667, "DemodBot", "password");
 			control.join("#DemodLand");
+
+			// Can add more actions here, but might want to use sleep()
 
 		} catch (Exception e) {
 			e.printStackTrace();
 			control.disconnect();
 		}
 
+		// Send anything typed in console as raw lines to the IRC
 		BufferedReader sysin = new BufferedReader(new InputStreamReader(
 				System.in));
 		String line;
 		while ((line = sysin.readLine()) != null) {
 			bus.post(new IRCSendRaw(line));
 		}
+
 	}
 }
