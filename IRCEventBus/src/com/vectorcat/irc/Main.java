@@ -15,7 +15,7 @@ import com.google.inject.name.Names;
 import com.vectorcat.irc.event.IRCSendEvent;
 import com.vectorcat.irc.event.recv.IRCRecvRaw;
 import com.vectorcat.irc.event.send.IRCSendRaw;
-import com.vectorcat.irc.feature.SillyFeature;
+import com.vectorcat.irc.feature.CleverBotFeature;
 
 public class Main {
 
@@ -64,13 +64,16 @@ public class Main {
 		IRCControl control = injector.getInstance(IRCControl.class);
 
 		// Initialize Features
-		injector.getInstance(SillyFeature.class);
+		// injector.getInstance(SillyFeature.class);
+		injector.getInstance(CleverBotFeature.class);
 
 		try {
 
 			// Initial actions
 			control.connect("irc.fyrechat.net", 6667, "DemodBot", "password");
-			control.join("#DemodLand");
+			control.join("#Vana");
+
+			control.ignore("SolidSnake");
 
 			// Can add more actions here, but might want to use sleep()
 

@@ -6,9 +6,11 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.UnknownHostException;
 import java.util.Date;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.TimeUnit;
 
+import com.beust.jcommander.internal.Sets;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -87,17 +89,31 @@ public final class IRCProtocol extends AbstractExecutionThreadService {
 
 		@Subscribe
 		public void onRecvMessage(IRCRecvMessage event) {
-			String lowerPrefixMatch = getMyNickname().toLowerCase() + " ";
-			boolean nicknameMessage = event instanceof IRCRecvNicknameMessage;
-			String message = event.getMessage();
-			if (nicknameMessage
-					|| message.toLowerCase().startsWith(lowerPrefixMatch)) {
-				String command = nicknameMessage ? message : message
-						.substring(lowerPrefixMatch.length());
-				command = command.trim();
+			if (event instanceof IRCRecvCommandMessage) {
+				return;
+			}
+
+			if (ignoredTargets.contains(event.getNickname().toLowerCase())) {
+				return;
+			}
+
+			String lowerPrefixMatch = getMyNickname().toLowerCase() + ":";
+			String lowerPrefixMatch2 = getMyNickname().toLowerCase() + ",";
+			boolean isCommand = event instanceof IRCRecvNicknameMessage;
+			String command = event.getMessage();
+			if (command.toLowerCase().startsWith(lowerPrefixMatch)) {
+				isCommand = true;
+				command = command.substring(lowerPrefixMatch.length()).trim();
+			}
+			if (command.toLowerCase().startsWith(lowerPrefixMatch2)) {
+				isCommand = true;
+				command = command.substring(lowerPrefixMatch2.length()).trim();
+			}
+			if (isCommand) {
 				bus.post(new IRCRecvCommandMessage(event.getTarget(), event
 						.getNickname(), event.getLogin(), event.getHostname(),
-						event.getMessage(), command));
+						event.getMessage(), command,
+						(event instanceof IRCRecvNicknameMessage)));
 			}
 		}
 
@@ -528,6 +544,8 @@ public final class IRCProtocol extends AbstractExecutionThreadService {
 	private final BufferedReader in;
 	private final BufferedWriter out;
 
+	private final Set<String> ignoredTargets = Sets.newHashSet();
+
 	private String myCurrentName = MY_NAME;
 
 	@Inject
@@ -539,6 +557,10 @@ public final class IRCProtocol extends AbstractExecutionThreadService {
 				networkHandler.getInputStream()));
 		this.out = new BufferedWriter(new OutputStreamWriter(
 				networkHandler.getOutputStream()));
+	}
+
+	public void addIgnore(String target) {
+		ignoredTargets.add(target);
 	}
 
 	public void connect(String host, int port, String nickname, String password)

@@ -44,6 +44,12 @@ public class IRCControl {
 		}
 	}
 
+	public void ignore(String... targets) {
+		for (String target : targets) {
+			protocol.addIgnore(target.toLowerCase());
+		}
+	}
+
 	public void join(final String channel) throws IOException,
 			IRCNoSuchChannelException {
 		try (EventMonitor<IRCRecvEvent> monitor = new EventMonitor<>(bus,
@@ -71,5 +77,4 @@ public class IRCControl {
 			}, 5, TimeUnit.SECONDS);
 		}
 	}
-
 }
