@@ -11,7 +11,7 @@ public abstract class Target {
 	}
 
 	public static String toIdentifier(String target) {
-		return target.trim().toLowerCase();
+		return target.trim().toUpperCase();
 	}
 
 	private final IRCControl control;
@@ -68,6 +68,10 @@ public abstract class Target {
 
 	public void message(String message) {
 		control.message(this, message);
+	}
+
+	public void reply(User user, String message) {
+		control.message(this, (isChannel() ? user + ": " : "") + message);
 	}
 
 	@Override

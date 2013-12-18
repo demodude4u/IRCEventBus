@@ -9,8 +9,11 @@ import java.util.Date;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.eventbus.EventBus;
@@ -23,8 +26,9 @@ import com.vectorcat.irc.event.IRCServerConnect;
 import com.vectorcat.irc.event.recv.IRCRecvAction;
 import com.vectorcat.irc.event.recv.IRCRecvChannelInfo;
 import com.vectorcat.irc.event.recv.IRCRecvChannelMessage;
-import com.vectorcat.irc.event.recv.IRCRecvDirectedMessage;
+import com.vectorcat.irc.event.recv.IRCRecvCommand;
 import com.vectorcat.irc.event.recv.IRCRecvDCC;
+import com.vectorcat.irc.event.recv.IRCRecvDirectedMessage;
 import com.vectorcat.irc.event.recv.IRCRecvEndOfNames;
 import com.vectorcat.irc.event.recv.IRCRecvFinger;
 import com.vectorcat.irc.event.recv.IRCRecvInvite;
@@ -81,6 +85,42 @@ import com.vectorcat.irc.util.WhyDoINeedThisReader;
 @Singleton
 public final class IRCProtocol extends AbstractExecutionThreadService {
 	private class Subscriber {
+		private void checkAndProcessCommand(boolean directedAtMe,
+				Target target, User user, String login, String hostname,
+				String rawMessage, String message) {
+			boolean isCommand = message.charAt(0) == '!';
+			if (isCommand) {
+				String[] split = message.split(" ", 2);
+				String command = split[0].substring(1).toUpperCase();
+				String argumentsString = split[1];
+
+				// http://stackoverflow.com/a/3366634 (modified)
+				// This matches space-delimited items, except within quotes
+				final String regex = "\"([^\"]*)\"|(\\S+)";
+				Matcher matcher = Pattern.compile(regex).matcher(
+						argumentsString);
+				ImmutableList.Builder<String> builder = ImmutableList.builder();
+				while (matcher.find()) {
+					if (matcher.group(1) != null) {
+						builder.add(matcher.group(1));
+					} else {
+						builder.add(matcher.group(2));
+					}
+				}
+				ImmutableList<String> arguments = builder.build();
+
+				bus.post(new IRCRecvCommand(target, user, login, hostname,
+						rawMessage, message, directedAtMe, command, arguments));
+			}
+		}
+
+		@Subscribe
+		public void onRecvDirectedMessage(IRCRecvDirectedMessage event) {
+			checkAndProcessCommand(true, event.getTarget(), event.getUser(),
+					event.getLogin(), event.getHostname(),
+					event.getRawMessage(), event.getMessage());
+		}
+
 		@Subscribe
 		public void onRecvFinger(IRCRecvFinger event) {
 			postRawMessage("NOTICE " + event.getUser() + " :\u0001FINGER "
@@ -89,31 +129,26 @@ public final class IRCProtocol extends AbstractExecutionThreadService {
 
 		@Subscribe
 		public void onRecvMessage(IRCRecvMessage event) {
-			if (event instanceof IRCRecvDirectedMessage) {
-				return;
-			}
-
 			if (ignoredTargets.contains(event.getTarget())) {
 				return;
 			}
 
-			String identifier = state.getMyUser().getIdentifier();
-			String lowerPrefixMatch = identifier + ":";
-			String lowerPrefixMatch2 = identifier + ",";
-			boolean isCommand = event instanceof IRCRecvUserMessage;
-			String command = event.getMessage();
-			if (command.toLowerCase().startsWith(identifier)) {
-				isCommand = true;
-				command = command.substring(lowerPrefixMatch.length()).trim();
+			boolean isDirected = event instanceof IRCRecvUserMessage;
+			String message = event.getMessage().trim();
+			String[] split = message.split("[:,]");
+			if (split.length > 0 && state.getMyUser().equalsString(split[0])) {
+				isDirected = true;
+				message = message.substring(split[0].length() + 1);
 			}
-			if (command.toLowerCase().startsWith(lowerPrefixMatch2)) {
-				isCommand = true;
-				command = command.substring(lowerPrefixMatch2.length()).trim();
-			}
-			if (isCommand) {
+			message = message.trim();
+			if (isDirected) {
 				bus.post(new IRCRecvDirectedMessage(event.getTarget(), event
 						.getUser(), event.getLogin(), event.getHostname(),
-						event.getMessage(), command));
+						event.getMessage(), message));
+			} else {
+				checkAndProcessCommand(false, event.getTarget(),
+						event.getUser(), event.getLogin(), event.getHostname(),
+						event.getMessage(), message);
 			}
 		}
 
@@ -383,8 +418,9 @@ public final class IRCProtocol extends AbstractExecutionThreadService {
 						.substring(line.indexOf(" :") + 2)));
 			} else if (command.equals("KICK")) {
 				String recipient = tokenizer.nextToken();
-				bus.post(new IRCRecvKick(target, user, login, hostname,
-						recipient, line.substring(line.indexOf(" :") + 2)));
+				bus.post(new IRCRecvKick(target.asChannel(), user, login,
+						hostname, recipient,
+						line.substring(line.indexOf(" :") + 2)));
 			} else if (command.equals("MODE")) {
 				String mode = line.substring(line.indexOf(targetString, 2)
 						+ targetString.length() + 1);
@@ -611,7 +647,11 @@ public final class IRCProtocol extends AbstractExecutionThreadService {
 	protected void run() throws Exception {
 		while (isRunning()) {
 			String readLine = in.readLine();
-			bus.post(new IRCRecvRaw(readLine));
+			try {
+				bus.post(new IRCRecvRaw(readLine));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
 	}
 

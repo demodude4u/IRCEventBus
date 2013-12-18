@@ -96,7 +96,7 @@ public class IRCControl {
 	}
 
 	public void join(final Channel channel) throws IOException,
-			IRCNoSuchChannelException {
+			IRCNoSuchChannelException, IRCBannedFromChannelException {
 		try (EventMonitor<IRCRecvEvent> monitor = new EventMonitor<>(bus,
 				IRCRecvEvent.class)) {
 
@@ -107,8 +107,10 @@ public class IRCControl {
 				public boolean visit(IRCRecvEvent event) throws IOException {
 					if (event instanceof IRCRecvServerResponse) {
 						IRCRecvServerResponse serverResponse = (IRCRecvServerResponse) event;
-						if (serverResponse.getCode() == 403) {
+						if (serverResponse.getCode() == Codes.ERR_NOSUCHCHANNEL) {
 							throw new IRCNoSuchChannelException(channel);
+						} else if (serverResponse.getCode() == Codes.ERR_BANNEDFROMCHAN) {
+							throw new IRCBannedFromChannelException(channel);
 						}
 					} else if (event instanceof IRCRecvJoin) {
 						IRCRecvJoin join = (IRCRecvJoin) event;

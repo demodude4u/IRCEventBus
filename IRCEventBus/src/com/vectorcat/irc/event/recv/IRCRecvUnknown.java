@@ -1,17 +1,12 @@
 package com.vectorcat.irc.event.recv;
 
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
 import com.vectorcat.irc.event.IRCRecvEvent;
 
+@Data
+@EqualsAndHashCode(callSuper = true)
 public class IRCRecvUnknown extends IRCRecvEvent {
-
 	private final String message;
-
-	public IRCRecvUnknown(String message) {
-		this.message = message;
-	}
-
-	public String getMessage() {
-		return message;
-	}
-
 }
