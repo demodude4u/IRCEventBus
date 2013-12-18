@@ -1,6 +1,8 @@
-package com.vectorcat.irc;
+package com.vectorcat.irc.exception;
 
 import java.io.IOException;
+
+import com.vectorcat.irc.Channel;
 
 public class IRCBannedFromChannelException extends IOException {
 	private static final long serialVersionUID = 5350049018817064474L;

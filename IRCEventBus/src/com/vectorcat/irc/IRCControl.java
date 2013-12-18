@@ -15,6 +15,7 @@ import com.vectorcat.irc.event.send.IRCSendJoin;
 import com.vectorcat.irc.event.send.IRCSendMessage;
 import com.vectorcat.irc.event.send.IRCSendPart;
 import com.vectorcat.irc.exception.IRCBadServerResponse;
+import com.vectorcat.irc.exception.IRCBannedFromChannelException;
 import com.vectorcat.irc.exception.IRCNoSuchChannelException;
 import com.vectorcat.irc.util.EventMonitor;
 import com.vectorcat.irc.util.EventVisitor;
