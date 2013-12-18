@@ -53,7 +53,7 @@ public class EventMonitor<T> implements Closeable {
 		while (true) {
 			T event;
 			try {
-				event = getEvents().poll(5, TimeUnit.SECONDS);
+				event = getEvents().poll(timeout, unit);
 			} catch (InterruptedException e) {
 				throw new IOException("Interrupted!", e);
 			}

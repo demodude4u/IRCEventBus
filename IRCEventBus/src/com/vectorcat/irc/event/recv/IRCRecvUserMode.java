@@ -1,19 +1,20 @@
 package com.vectorcat.irc.event.recv;
 
+import com.vectorcat.irc.User;
 import com.vectorcat.irc.event.IRCRecvEvent;
 
 public class IRCRecvUserMode extends IRCRecvEvent {
 
-	private final String user;
-	private final String nickname;
+	private final User recipient;
+	private final User user;
 	private final String login;
 	private final String hostname;
 	private final String mode;
 
-	public IRCRecvUserMode(String user, String nickname, String login,
+	public IRCRecvUserMode(User recipient, User user, String login,
 			String hostname, String mode) {
+		this.recipient = recipient;
 		this.user = user;
-		this.nickname = nickname;
 		this.login = login;
 		this.hostname = hostname;
 		this.mode = mode;
@@ -31,12 +32,11 @@ public class IRCRecvUserMode extends IRCRecvEvent {
 		return mode;
 	}
 
-	public String getNickname() {
-		return nickname;
+	public User getRecipient() {
+		return recipient;
 	}
 
-	public String getUser() {
+	public User getUser() {
 		return user;
 	}
-
 }

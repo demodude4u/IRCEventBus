@@ -1,17 +1,18 @@
 package com.vectorcat.irc.event.recv;
 
+import com.vectorcat.irc.Channel;
 import com.vectorcat.irc.event.IRCRecvEvent;
 
 public class IRCRecvEndOfNames extends IRCRecvEvent {
 
-	private final String channelName;
+	private final Channel channel;
 
-	public IRCRecvEndOfNames(String channelName) {
-		this.channelName = channelName;
+	public IRCRecvEndOfNames(Channel channel) {
+		this.channel = channel;
 	}
 
-	public String getChannelName() {
-		return channelName;
+	public Channel getChannel() {
+		return channel;
 	}
 
 }

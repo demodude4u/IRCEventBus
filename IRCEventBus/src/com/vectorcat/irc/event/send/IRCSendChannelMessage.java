@@ -1,13 +1,18 @@
 package com.vectorcat.irc.event.send;
 
+import com.vectorcat.irc.Channel;
+
 public class IRCSendChannelMessage extends IRCSendMessage {
 
-	public IRCSendChannelMessage(String channel, String message) {
+	private final Channel channel;
+
+	public IRCSendChannelMessage(Channel channel, String message) {
 		super(channel, message);
+		this.channel = channel;
 	}
 
-	public String getChannel() {
-		return getTarget();
+	public Channel getChannel() {
+		return channel;
 	}
 
 }

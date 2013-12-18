@@ -1,23 +1,26 @@
 package com.vectorcat.irc.event.recv.mode;
 
+import com.vectorcat.irc.Channel;
+import com.vectorcat.irc.User;
+
 public class IRCRecvModeSetChannelBan {
 
-	private final String channel;
-	private final String nickname;
+	private final Channel channel;
+	private final User user;
 	private final String login;
 	private final String hostname;
 	private final String hostmask;
 
-	public IRCRecvModeSetChannelBan(String channel, String nickname,
-			String login, String hostname, String hostmask) {
+	public IRCRecvModeSetChannelBan(Channel channel, User user, String login,
+			String hostname, String hostmask) {
 		this.channel = channel;
-		this.nickname = nickname;
+		this.user = user;
 		this.login = login;
 		this.hostname = hostname;
 		this.hostmask = hostmask;
 	}
 
-	public String getChannel() {
+	public Channel getChannel() {
 		return channel;
 	}
 
@@ -33,8 +36,8 @@ public class IRCRecvModeSetChannelBan {
 		return login;
 	}
 
-	public String getNickname() {
-		return nickname;
+	public User getUser() {
+		return user;
 	}
 
 }

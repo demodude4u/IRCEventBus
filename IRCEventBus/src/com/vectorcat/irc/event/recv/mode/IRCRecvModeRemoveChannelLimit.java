@@ -1,21 +1,24 @@
 package com.vectorcat.irc.event.recv.mode;
 
+import com.vectorcat.irc.Channel;
+import com.vectorcat.irc.User;
+
 public class IRCRecvModeRemoveChannelLimit {
 
-	private final String channel;
-	private final String nickname;
+	private final Channel channel;
+	private final User user;
 	private final String login;
 	private final String hostname;
 
-	public IRCRecvModeRemoveChannelLimit(String channel, String nickname,
+	public IRCRecvModeRemoveChannelLimit(Channel channel, User user,
 			String login, String hostname) {
 		this.channel = channel;
-		this.nickname = nickname;
+		this.user = user;
 		this.login = login;
 		this.hostname = hostname;
 	}
 
-	public String getChannel() {
+	public Channel getChannel() {
 		return channel;
 	}
 
@@ -27,8 +30,8 @@ public class IRCRecvModeRemoveChannelLimit {
 		return login;
 	}
 
-	public String getNickname() {
-		return nickname;
+	public User getUser() {
+		return user;
 	}
 
 }

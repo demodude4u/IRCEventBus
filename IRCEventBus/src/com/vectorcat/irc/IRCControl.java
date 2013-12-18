@@ -4,14 +4,16 @@ import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.base.Preconditions;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.google.inject.name.Named;
 import com.vectorcat.irc.event.IRCRecvEvent;
 import com.vectorcat.irc.event.recv.IRCRecvJoin;
 import com.vectorcat.irc.event.recv.IRCRecvServerResponse;
 import com.vectorcat.irc.event.send.IRCSendJoin;
+import com.vectorcat.irc.event.send.IRCSendMessage;
+import com.vectorcat.irc.event.send.IRCSendPart;
 import com.vectorcat.irc.exception.IRCBadServerResponse;
 import com.vectorcat.irc.exception.IRCNoSuchChannelException;
 import com.vectorcat.irc.util.EventMonitor;
@@ -22,35 +24,78 @@ public class IRCControl {
 
 	private final EventBus bus;
 	private final IRCProtocol protocol;
+	private final IRCHandles handles;
 
 	@Inject
-	IRCControl(@Named("IRC") EventBus bus, IRCProtocol protocol) {
+	IRCControl(EventBus bus, IRCProtocol protocol, IRCHandles handles) {
 		this.bus = bus;
 		this.protocol = protocol;
+		this.handles = handles;
 	}
 
-	public void connect(String host, int port, String nickname, String password)
-			throws UnknownHostException, IOException, IRCBadServerResponse {
-		if (!protocol.isRunning()) {
-			protocol.start();
+	public void connectServer(Server server) throws UnknownHostException,
+			IOException, IRCBadServerResponse {
+		if (isConnected()) {
+			try {
+				disconnectServer();
+			} catch (Exception e) {
+				// We want to prevent previous connections causing problems
+				// So just emit we saw something bad
+				e.printStackTrace();
+			}
 		}
-		protocol.connect(host, port, nickname, password);
+		protocol.startAsync();
+		protocol.awaitRunning();
+		protocol.connect(server);
 	}
 
-	public void disconnect() throws IOException {
-		protocol.disconnect();
-		if (protocol.isRunning()) {
-			protocol.stop();
+	public void disconnectServer() throws IOException {
+		if (isConnected()) {
+			protocol.disconnect();
+			protocol.stopAsync();
+			protocol.awaitTerminated();
 		}
+	}
+
+	public Channel getChannel(String channel) {
+		return handles.getChannel(channel);
+	}
+
+	public Server getConnectedServer() {
+		Preconditions.checkState(isConnected(),
+				"Cannot get connected server if not connected!");
+		return protocol.getServer().orNull();
+	}
+
+	public Server getServer(String host, int port, String username,
+			String password) {
+		return handles.getServer(host, port, handles.getUser(username),
+				password);
+	}
+
+	public Target getTarget(String target) {
+		if (Target.isChannel(target)) {
+			return getChannel(target);
+		} else {
+			return getUser(target);
+		}
+	}
+
+	public User getUser(String user) {
+		return handles.getUser(user);
 	}
 
 	public void ignore(String... targets) {
 		for (String target : targets) {
-			protocol.addIgnore(target.toLowerCase());
+			protocol.addIgnore(getTarget(target));
 		}
 	}
 
-	public void join(final String channel) throws IOException,
+	public boolean isConnected() {
+		return protocol.getServer().isPresent();
+	}
+
+	public void join(final Channel channel) throws IOException,
 			IRCNoSuchChannelException {
 		try (EventMonitor<IRCRecvEvent> monitor = new EventMonitor<>(bus,
 				IRCRecvEvent.class)) {
@@ -67,14 +112,21 @@ public class IRCControl {
 						}
 					} else if (event instanceof IRCRecvJoin) {
 						IRCRecvJoin join = (IRCRecvJoin) event;
-						if (join.getChannel().toLowerCase()
-								.equals(channel.toLowerCase())) {
+						if (join.getChannel().equals(channel)) {
 							return true;
 						}
 					}
 					return false;
 				}
-			}, 5, TimeUnit.SECONDS);
+			}, 30, TimeUnit.SECONDS);
 		}
+	}
+
+	public void message(Target target, String message) {
+		bus.post(new IRCSendMessage(target, message));
+	}
+
+	public void part(Channel channel) {
+		bus.post(new IRCSendPart(channel));
 	}
 }

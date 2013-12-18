@@ -1,25 +1,27 @@
 package com.vectorcat.irc.event.recv.mode;
 
+import com.vectorcat.irc.Channel;
+import com.vectorcat.irc.User;
 import com.vectorcat.irc.event.IRCRecvEvent;
 
 public class IRCRecvModeOp extends IRCRecvEvent {
 
-	private final String channel;
-	private final String nickname;
+	private final Channel channel;
+	private final User user;
 	private final String login;
 	private final String hostname;
-	private final String recipient;
+	private final User recipient;
 
-	public IRCRecvModeOp(String channel, String nickname, String login,
-			String hostname, String recipient) {
+	public IRCRecvModeOp(Channel channel, User user, String login,
+			String hostname, User recipient) {
 		this.channel = channel;
-		this.nickname = nickname;
+		this.user = user;
 		this.login = login;
 		this.hostname = hostname;
 		this.recipient = recipient;
 	}
 
-	public String getChannel() {
+	public Channel getChannel() {
 		return channel;
 	}
 
@@ -31,12 +33,12 @@ public class IRCRecvModeOp extends IRCRecvEvent {
 		return login;
 	}
 
-	public String getNickname() {
-		return nickname;
+	public User getRecipient() {
+		return recipient;
 	}
 
-	public String getRecipient() {
-		return recipient;
+	public User getUser() {
+		return user;
 	}
 
 }

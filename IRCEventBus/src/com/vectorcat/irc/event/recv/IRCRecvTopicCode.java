@@ -1,19 +1,20 @@
 package com.vectorcat.irc.event.recv;
 
+import com.vectorcat.irc.Channel;
 import com.vectorcat.irc.event.IRCRecvEvent;
 
 public class IRCRecvTopicCode extends IRCRecvEvent {
 
-	private final String channelName;
+	private final Channel channel;
 	private final String topic;
 
-	public IRCRecvTopicCode(String channelName, String topic) {
-		this.channelName = channelName;
+	public IRCRecvTopicCode(Channel channel, String topic) {
+		this.channel = channel;
 		this.topic = topic;
 	}
 
-	public String getChannelName() {
-		return channelName;
+	public Channel getChannel() {
+		return channel;
 	}
 
 	public String getTopic() {
