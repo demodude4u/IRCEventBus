@@ -129,7 +129,15 @@ public class IRCControl {
 		bus.post(new IRCSendMessage(target, message));
 	}
 
+	public void mute() {
+		protocol.mute();
+	}
+
 	public void part(Channel channel) {
 		bus.post(new IRCSendPart(channel));
+	}
+
+	public void unmute() {
+		protocol.unmute();
 	}
 }

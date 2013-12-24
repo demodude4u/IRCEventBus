@@ -1,6 +1,6 @@
 package com.vectorcat.irc;
 
-public abstract class Target {
+public abstract class Target implements Comparable<Target> {
 
 	public static boolean isChannel(String target) {
 		return Channel.CHANNEL_PREFIXES.indexOf(toIdentifier(target).charAt(0)) != -1;
@@ -31,6 +31,11 @@ public abstract class Target {
 
 	public User asUser() {
 		return (User) this;
+	}
+
+	@Override
+	public int compareTo(Target o) {
+		return identifier.compareTo(o.identifier);
 	}
 
 	@Override

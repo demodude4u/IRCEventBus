@@ -9,11 +9,8 @@ import java.util.Date;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.eventbus.EventBus;
@@ -75,15 +72,17 @@ import com.vectorcat.irc.event.recv.mode.IRCRecvModeSetPrivate;
 import com.vectorcat.irc.event.recv.mode.IRCRecvModeSetSecret;
 import com.vectorcat.irc.event.recv.mode.IRCRecvModeSetTopicProtection;
 import com.vectorcat.irc.event.recv.mode.IRCRecvModeVoice;
+import com.vectorcat.irc.event.send.IRCSendMessage;
 import com.vectorcat.irc.event.send.IRCSendRaw;
 import com.vectorcat.irc.exception.IRCBadServerResponse;
+import com.vectorcat.irc.util.Arguments;
 import com.vectorcat.irc.util.EventMonitor;
 import com.vectorcat.irc.util.EventVisitor;
 import com.vectorcat.irc.util.NetworkHandler;
 import com.vectorcat.irc.util.WhyDoINeedThisReader;
 
 @Singleton
-public final class IRCProtocol extends AbstractExecutionThreadService {
+class IRCProtocol extends AbstractExecutionThreadService {
 	private class Subscriber {
 		private void checkAndProcessCommand(boolean directedAtMe,
 				Target target, User user, String login, String hostname,
@@ -92,22 +91,8 @@ public final class IRCProtocol extends AbstractExecutionThreadService {
 			if (isCommand) {
 				String[] split = message.split(" ", 2);
 				String command = split[0].substring(1).toUpperCase();
-				String argumentsString = split[1];
-
-				// http://stackoverflow.com/a/3366634 (modified)
-				// This matches space-delimited items, except within quotes
-				final String regex = "\"([^\"]*)\"|(\\S+)";
-				Matcher matcher = Pattern.compile(regex).matcher(
-						argumentsString);
-				ImmutableList.Builder<String> builder = ImmutableList.builder();
-				while (matcher.find()) {
-					if (matcher.group(1) != null) {
-						builder.add(matcher.group(1));
-					} else {
-						builder.add(matcher.group(2));
-					}
-				}
-				ImmutableList<String> arguments = builder.build();
+				Arguments arguments = new Arguments(split.length > 1 ? split[1]
+						: "");
 
 				bus.post(new IRCRecvCommand(target, user, login, hostname,
 						rawMessage, message, directedAtMe, command, arguments));
@@ -129,7 +114,7 @@ public final class IRCProtocol extends AbstractExecutionThreadService {
 
 		@Subscribe
 		public void onRecvMessage(IRCRecvMessage event) {
-			if (ignoredTargets.contains(event.getTarget())) {
+			if (ignoredTargets.contains(event.getUser())) {
 				return;
 			}
 
@@ -498,7 +483,7 @@ public final class IRCProtocol extends AbstractExecutionThreadService {
 						response.lastIndexOf(' ', channelEndIndex - 1) + 1,
 						channelEndIndex));
 
-				ImmutableMap.Builder<String, String> builder = ImmutableMap
+				ImmutableMap.Builder<User, String> builder = ImmutableMap
 						.builder();
 
 				StringTokenizer tokenizer = new StringTokenizer(
@@ -512,7 +497,7 @@ public final class IRCProtocol extends AbstractExecutionThreadService {
 						prefix = "" + firstChar;
 					}
 					nickname = nickname.substring(prefix.length());
-					builder.put(nickname, prefix);
+					builder.put(handles.getUser(nickname), prefix);
 				}
 
 				bus.post(new IRCRecvNameReply(channel, builder.build()));
@@ -539,6 +524,9 @@ public final class IRCProtocol extends AbstractExecutionThreadService {
 
 		@Subscribe
 		public void onSend(IRCSendEvent event) {
+			if (event instanceof IRCSendMessage && mute) {
+				return;
+			}
 			try {
 				out.write(event.getRawMessage() + "\r\n");
 				out.flush();
@@ -569,6 +557,7 @@ public final class IRCProtocol extends AbstractExecutionThreadService {
 	private final Set<Target> ignoredTargets = Sets.newHashSet();
 
 	private Optional<Server> server = Optional.absent();
+	private boolean mute = false;
 
 	@Inject
 	IRCProtocol(EventBus eventBus, IRCHandles handles, IRCState state,
@@ -643,6 +632,10 @@ public final class IRCProtocol extends AbstractExecutionThreadService {
 		}
 	}
 
+	public void mute() {
+		mute = true;
+	}
+
 	@Override
 	protected void run() throws Exception {
 		while (isRunning()) {
@@ -665,6 +658,10 @@ public final class IRCProtocol extends AbstractExecutionThreadService {
 	protected void startUp() throws Exception {
 		super.startUp();
 		bus.register(subscriber);
+	}
+
+	public void unmute() {
+		mute = false;
 	}
 
 }

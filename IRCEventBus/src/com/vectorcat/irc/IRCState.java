@@ -10,8 +10,10 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.vectorcat.irc.event.IRCServerConnect;
 import com.vectorcat.irc.event.recv.IRCRecvJoin;
+import com.vectorcat.irc.event.recv.IRCRecvNameReply;
 import com.vectorcat.irc.event.recv.IRCRecvNickChange;
 import com.vectorcat.irc.event.recv.IRCRecvPart;
+import com.vectorcat.irc.event.recv.IRCRecvQuit;
 
 @Singleton
 public class IRCState {
@@ -24,27 +26,40 @@ public class IRCState {
 
 		@Subscribe
 		public void onJoin(IRCRecvJoin event) {
-			channelUsers.put(event.getChannel(), event.getUser());
+			addToChannel(event.getChannel(), event.getUser());
+		}
+
+		@Subscribe
+		// Happens on my channel join
+		public void onNameReply(IRCRecvNameReply event) {
+			for (User user : event.getUsersAndPrefixes().keySet()) {
+				addToChannel(event.getChannel(), user);
+			}
 		}
 
 		@Subscribe
 		public void onNick(IRCRecvNickChange event) {
 			if (event.getUser().equals(getMyUser())) {
 				myUser = event.getNewUser();
+				System.out.println("New Nickname! " + myUser);
 			}
-			System.out.println("New Nickname! " + myUser);
+			renameUser(event.getUser(), event.getNewUser());
 		}
 
 		@Subscribe
 		public void onPart(IRCRecvPart event) {
-			channelUsers.remove(event.getChannel(), event.getUser());
-			if (event.getUser().equals(getMyUser())) {
-				channelUsers.removeAll(event.getChannel());
-			}
+			removeFromChannel(event.getChannel(), event.getUser());
+		}
+
+		@Subscribe
+		public void onQuit(IRCRecvQuit event) {
+			removeUser(event.getUser());
 		}
 	}
 
 	private final Multimap<Channel, User> channelUsers = LinkedHashMultimap
+			.create();
+	private final Multimap<User, Channel> userChannels = LinkedHashMultimap
 			.create();
 
 	private User myUser;
@@ -53,6 +68,19 @@ public class IRCState {
 	@Inject
 	IRCState(EventBus bus) {
 		bus.register(new Subscriber());
+	}
+
+	private void addToChannel(Channel channel, User user) {
+		channelUsers.put(channel, user);
+		userChannels.put(user, channel);
+	}
+
+	public Collection<Channel> getChannels() {
+		return channelUsers.keySet();
+	}
+
+	public Collection<Channel> getChannels(User user) {
+		return userChannels.get(user);
 	}
 
 	public Server getMyServer() {
@@ -69,5 +97,34 @@ public class IRCState {
 
 	public boolean inChannel(Channel channel, User user) {
 		return getUsers(channel).contains(user);
+	}
+
+	public boolean isVisible(User user) {
+		return !userChannels.get(user).isEmpty();
+	}
+
+	private void removeFromChannel(Channel channel, User user) {
+		channelUsers.remove(channel, user);
+		if (user.equals(getMyUser())) {
+			channelUsers.removeAll(channel);
+		}
+	}
+
+	private void removeUser(User user) {
+		for (Channel channel : userChannels.get(user)) {
+			Collection<User> users = channelUsers.get(channel);
+			users.remove(user);
+		}
+		userChannels.removeAll(user);
+	}
+
+	private void renameUser(User user, User newUser) {
+		for (Channel channel : userChannels.get(user)) {
+			Collection<User> users = channelUsers.get(channel);
+			users.remove(user);
+			users.add(newUser);
+			userChannels.get(newUser).add(channel);
+		}
+		userChannels.removeAll(user);
 	}
 }
