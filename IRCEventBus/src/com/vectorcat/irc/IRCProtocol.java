@@ -169,7 +169,7 @@ class IRCProtocol extends AbstractExecutionThreadService {
 					if (atPos == '+' || atPos == '-') {
 						pn = atPos;
 					} else {
-						String param = params[p];
+						String param = (p >= params.length) ? null : params[p];
 						if (atPos == 'o') {
 							if (pn == '+') {
 								bus.post(new IRCRecvModeOp(channel, user,
