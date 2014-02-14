@@ -4,11 +4,12 @@ import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.vectorcat.irc.event.IRCRecvEvent;
+import com.vectorcat.irc.event.IRCServerExceptionEvent;
 import com.vectorcat.irc.event.recv.IRCRecvJoin;
 import com.vectorcat.irc.event.recv.IRCRecvServerResponse;
 import com.vectorcat.irc.event.send.IRCSendJoin;
@@ -19,6 +20,7 @@ import com.vectorcat.irc.exception.IRCBannedFromChannelException;
 import com.vectorcat.irc.exception.IRCNoSuchChannelException;
 import com.vectorcat.irc.util.EventMonitor;
 import com.vectorcat.irc.util.EventVisitor;
+import com.vectorcat.irc.util.NetworkHandler;
 
 @Singleton
 public class IRCControl {
@@ -28,10 +30,19 @@ public class IRCControl {
 	private final IRCHandles handles;
 
 	@Inject
-	IRCControl(EventBus bus, IRCProtocol protocol, IRCHandles handles) {
+	IRCControl(final EventBus bus, IRCProtocol protocol, IRCHandles handles,
+			NetworkHandler networkHandler) {
 		this.bus = bus;
 		this.protocol = protocol;
 		this.handles = handles;
+
+		networkHandler.setExceptionHandler(new Predicate<Exception>() {
+			@Override
+			public boolean apply(Exception e) {
+				bus.post(new IRCServerExceptionEvent(e));
+				return true;
+			}
+		});
 	}
 
 	public void connectServer(Server server) throws UnknownHostException,
@@ -45,17 +56,15 @@ public class IRCControl {
 				e.printStackTrace();
 			}
 		}
-		protocol.startAsync();
-		protocol.awaitRunning();
+		if (!protocol.isRunning()) {
+			protocol.startAsync();
+			protocol.awaitRunning();
+		}
 		protocol.connect(server);
 	}
 
 	public void disconnectServer() throws IOException {
-		if (isConnected()) {
-			protocol.disconnect();
-			protocol.stopAsync();
-			protocol.awaitTerminated();
-		}
+		protocol.disconnect();
 	}
 
 	public Channel getChannel(String channel) {
@@ -63,8 +72,6 @@ public class IRCControl {
 	}
 
 	public Server getConnectedServer() {
-		Preconditions.checkState(isConnected(),
-				"Cannot get connected server if not connected!");
 		return protocol.getServer().orNull();
 	}
 
@@ -93,6 +100,10 @@ public class IRCControl {
 	}
 
 	public boolean isConnected() {
+		return protocol.getServer().isPresent() && protocol.isConnected();
+	}
+
+	public boolean isServerPresent() {
 		return protocol.getServer().isPresent();
 	}
 
@@ -135,6 +146,11 @@ public class IRCControl {
 
 	public void part(Channel channel) {
 		bus.post(new IRCSendPart(channel));
+	}
+
+	public void reconnectServer() throws UnknownHostException,
+			IRCBadServerResponse, IOException {
+		connectServer(getConnectedServer());
 	}
 
 	public void unmute() {

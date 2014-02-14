@@ -27,6 +27,7 @@ import com.vectorcat.irc.event.recv.IRCRecvCommand;
 import com.vectorcat.irc.event.recv.IRCRecvDCC;
 import com.vectorcat.irc.event.recv.IRCRecvDirectedMessage;
 import com.vectorcat.irc.event.recv.IRCRecvEndOfNames;
+import com.vectorcat.irc.event.recv.IRCRecvError;
 import com.vectorcat.irc.event.recv.IRCRecvFinger;
 import com.vectorcat.irc.event.recv.IRCRecvInvite;
 import com.vectorcat.irc.event.recv.IRCRecvJoin;
@@ -286,6 +287,10 @@ class IRCProtocol extends AbstractExecutionThreadService {
 			String line = event.getMessage();
 			if (line.startsWith("PING ")) {
 				bus.post(new IRCRecvServerPing(line.substring(5)));
+				return;
+			}
+			if (line.startsWith("ERROR ")) {
+				bus.post(new IRCRecvError(line.substring(6)));
 				return;
 			}
 
@@ -571,6 +576,7 @@ class IRCProtocol extends AbstractExecutionThreadService {
 				networkHandler.getInputStream()));
 		this.out = new BufferedWriter(new OutputStreamWriter(
 				networkHandler.getOutputStream()));
+
 	}
 
 	public void addIgnore(Target target) {
@@ -632,6 +638,10 @@ class IRCProtocol extends AbstractExecutionThreadService {
 		}
 	}
 
+	public boolean isConnected() {
+		return networkHandler.isConnected();
+	}
+
 	public void mute() {
 		mute = true;
 	}
@@ -639,8 +649,8 @@ class IRCProtocol extends AbstractExecutionThreadService {
 	@Override
 	protected void run() throws Exception {
 		while (isRunning()) {
-			String readLine = in.readLine();
 			try {
+				String readLine = in.readLine();
 				bus.post(new IRCRecvRaw(readLine));
 			} catch (Exception e) {
 				e.printStackTrace();
