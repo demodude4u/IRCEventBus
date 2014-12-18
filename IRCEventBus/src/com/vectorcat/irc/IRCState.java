@@ -14,6 +14,7 @@ import com.vectorcat.irc.event.recv.IRCRecvNameReply;
 import com.vectorcat.irc.event.recv.IRCRecvNickChange;
 import com.vectorcat.irc.event.recv.IRCRecvPart;
 import com.vectorcat.irc.event.recv.IRCRecvQuit;
+import com.vectorcat.irc.event.recv.IRCRecvRaw;
 
 @Singleton
 public class IRCState {
@@ -55,7 +56,14 @@ public class IRCState {
 		public void onQuit(IRCRecvQuit event) {
 			removeUser(event.getUser());
 		}
+
+		@Subscribe
+		public void onRecvRaw(IRCRecvRaw event) {
+			lastRecvTimeMillis = System.currentTimeMillis();
+		}
 	}
+
+	private long lastRecvTimeMillis = System.currentTimeMillis();
 
 	private final Multimap<Channel, User> channelUsers = LinkedHashMultimap
 			.create();
@@ -81,6 +89,10 @@ public class IRCState {
 
 	public Collection<Channel> getChannels(User user) {
 		return userChannels.get(user);
+	}
+
+	public long getLastRecvTimeMillis() {
+		return lastRecvTimeMillis;
 	}
 
 	public Server getMyServer() {

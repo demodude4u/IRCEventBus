@@ -432,6 +432,7 @@ class IRCProtocol extends AbstractExecutionThreadService {
 
 		@Subscribe
 		public void onRecvServerPing(IRCRecvServerPing event) {
+			System.out.println("PING @ " + System.currentTimeMillis());
 			postRawMessage("PONG " + event.getResponse());
 		}
 
@@ -564,6 +565,8 @@ class IRCProtocol extends AbstractExecutionThreadService {
 	private Optional<Server> server = Optional.absent();
 	private boolean mute = false;
 
+	public static final long RECV_TIMEOUT = 1000 * 60 * 5;
+
 	@Inject
 	IRCProtocol(EventBus eventBus, IRCHandles handles, IRCState state,
 			NetworkHandler networkHandler) {
@@ -639,7 +642,8 @@ class IRCProtocol extends AbstractExecutionThreadService {
 	}
 
 	public boolean isConnected() {
-		return networkHandler.isConnected();
+		return networkHandler.isConnected()
+				&& (System.currentTimeMillis() - state.getLastRecvTimeMillis() < RECV_TIMEOUT);
 	}
 
 	public void mute() {
