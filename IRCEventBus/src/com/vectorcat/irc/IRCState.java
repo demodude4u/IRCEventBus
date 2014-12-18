@@ -8,6 +8,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import com.vectorcat.irc.event.IRCServerConnect;
 import com.vectorcat.irc.event.recv.IRCRecvJoin;
 import com.vectorcat.irc.event.recv.IRCRecvNameReply;
@@ -35,6 +36,7 @@ public class IRCState {
 		public void onNameReply(IRCRecvNameReply event) {
 			for (User user : event.getUsersAndPrefixes().keySet()) {
 				addToChannel(event.getChannel(), user);
+				System.out.println("Name Reply: " + user);
 			}
 		}
 
@@ -74,7 +76,7 @@ public class IRCState {
 	private Server myServer;
 
 	@Inject
-	IRCState(EventBus bus) {
+	IRCState(@Named("recvBus") EventBus bus) {
 		bus.register(new Subscriber());
 	}
 

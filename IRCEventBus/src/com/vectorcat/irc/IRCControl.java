@@ -8,6 +8,7 @@ import com.google.common.base.Predicate;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import com.vectorcat.irc.event.IRCRecvEvent;
 import com.vectorcat.irc.event.IRCServerExceptionEvent;
 import com.vectorcat.irc.event.recv.IRCRecvJoin;
@@ -30,8 +31,8 @@ public class IRCControl {
 	private final IRCHandles handles;
 
 	@Inject
-	IRCControl(final EventBus bus, IRCProtocol protocol, IRCHandles handles,
-			NetworkHandler networkHandler) {
+	IRCControl(@Named("recvBus") final EventBus bus, IRCProtocol protocol,
+			IRCHandles handles, NetworkHandler networkHandler) {
 		this.bus = bus;
 		this.protocol = protocol;
 		this.handles = handles;

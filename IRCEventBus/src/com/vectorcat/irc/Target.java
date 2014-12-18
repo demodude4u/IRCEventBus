@@ -21,7 +21,7 @@ public abstract class Target implements Comparable<Target> {
 
 	protected Target(IRCControl control, String target) {
 		this.control = control;
-		this.target = target;
+		this.target = target.trim();
 		identifier = toIdentifier(target);
 	}
 

@@ -18,6 +18,7 @@ import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import com.vectorcat.irc.event.IRCSendEvent;
 import com.vectorcat.irc.event.IRCServerConnect;
 import com.vectorcat.irc.event.recv.IRCRecvAction;
@@ -84,6 +85,22 @@ import com.vectorcat.irc.util.WhyDoINeedThisReader;
 
 @Singleton
 class IRCProtocol extends AbstractExecutionThreadService {
+	private class SendSubscriber {
+		@Subscribe
+		public void onSend(IRCSendEvent event) {
+			if (event instanceof IRCSendMessage && mute) {
+				return;
+			}
+			try {
+				out.write(event.getRawMessage() + "\r\n");
+				out.flush();
+			} catch (IOException e) {
+				e.printStackTrace();
+
+			}
+		}
+	}
+
 	private class Subscriber {
 		private void checkAndProcessCommand(boolean directedAtMe,
 				Target target, User user, String login, String hostname,
@@ -95,7 +112,7 @@ class IRCProtocol extends AbstractExecutionThreadService {
 				Arguments arguments = new Arguments(split.length > 1 ? split[1]
 						: "");
 
-				bus.post(new IRCRecvCommand(target, user, login, hostname,
+				recvBus.post(new IRCRecvCommand(target, user, login, hostname,
 						rawMessage, message, directedAtMe, command, arguments));
 			}
 		}
@@ -128,8 +145,8 @@ class IRCProtocol extends AbstractExecutionThreadService {
 			}
 			message = message.trim();
 			if (isDirected) {
-				bus.post(new IRCRecvDirectedMessage(event.getTarget(), event
-						.getUser(), event.getLogin(), event.getHostname(),
+				recvBus.post(new IRCRecvDirectedMessage(event.getTarget(),
+						event.getUser(), event.getLogin(), event.getHostname(),
 						event.getMessage(), message));
 			} else {
 				checkAndProcessCommand(false, event.getTarget(),
@@ -173,97 +190,98 @@ class IRCProtocol extends AbstractExecutionThreadService {
 						String param = (p >= params.length) ? null : params[p];
 						if (atPos == 'o') {
 							if (pn == '+') {
-								bus.post(new IRCRecvModeOp(channel, user,
+								recvBus.post(new IRCRecvModeOp(channel, user,
 										login, hostname, handles.getUser(param)));
 							} else {
-								bus.post(new IRCRecvModeDeOp(channel, user,
+								recvBus.post(new IRCRecvModeDeOp(channel, user,
 										login, hostname, handles.getUser(param)));
 							}
 							p++;
 						} else if (atPos == 'v') {
 							if (pn == '+') {
-								bus.post(new IRCRecvModeVoice(channel, user,
-										login, hostname, param));
+								recvBus.post(new IRCRecvModeVoice(channel,
+										user, login, hostname, param));
 							} else {
-								bus.post(new IRCRecvModeDeVoice(channel, user,
-										login, hostname, handles.getUser(param)));
+								recvBus.post(new IRCRecvModeDeVoice(channel,
+										user, login, hostname, handles
+												.getUser(param)));
 							}
 							p++;
 						} else if (atPos == 'k') {
 							if (pn == '+') {
-								bus.post(new IRCRecvModeSetChannelKey(channel,
-										user, login, hostname, param));
+								recvBus.post(new IRCRecvModeSetChannelKey(
+										channel, user, login, hostname, param));
 							} else {
-								bus.post(new IRCRecvModeRemoveChannelKey(
+								recvBus.post(new IRCRecvModeRemoveChannelKey(
 										channel, user, login, hostname, param));
 							}
 							p++;
 						} else if (atPos == 'l') {
 							if (pn == '+') {
-								bus.post(new IRCRecvModeSetChannelLimit(
+								recvBus.post(new IRCRecvModeSetChannelLimit(
 										channel, user, login, hostname, Integer
 												.parseInt(param)));
 								p++;
 							} else {
-								bus.post(new IRCRecvModeRemoveChannelLimit(
+								recvBus.post(new IRCRecvModeRemoveChannelLimit(
 										channel, user, login, hostname));
 							}
 						} else if (atPos == 'b') {
 							if (pn == '+') {
-								bus.post(new IRCRecvModeSetChannelBan(channel,
-										user, login, hostname, param));
+								recvBus.post(new IRCRecvModeSetChannelBan(
+										channel, user, login, hostname, param));
 							} else {
-								bus.post(new IRCRecvModeRemoveChannelBan(
+								recvBus.post(new IRCRecvModeRemoveChannelBan(
 										channel, user, login, hostname, param));
 							}
 							p++;
 						} else if (atPos == 't') {
 							if (pn == '+') {
-								bus.post(new IRCRecvModeSetTopicProtection(
+								recvBus.post(new IRCRecvModeSetTopicProtection(
 										channel, user, login, hostname));
 							} else {
-								bus.post(new IRCRecvModeRemoveTopicProtection(
+								recvBus.post(new IRCRecvModeRemoveTopicProtection(
 										channel, user, login, hostname));
 							}
 						} else if (atPos == 'n') {
 							if (pn == '+') {
-								bus.post(new IRCRecvModeSetNoExternalMessages(
+								recvBus.post(new IRCRecvModeSetNoExternalMessages(
 										channel, user, login, hostname));
 							} else {
-								bus.post(new IRCRecvModeRemoveNoExternalMessages(
+								recvBus.post(new IRCRecvModeRemoveNoExternalMessages(
 										channel, user, login, hostname));
 							}
 						} else if (atPos == 'i') {
 							if (pn == '+') {
-								bus.post(new IRCRecvModeSetInviteOnly(channel,
-										user, login, hostname));
+								recvBus.post(new IRCRecvModeSetInviteOnly(
+										channel, user, login, hostname));
 							} else {
-								bus.post(new IRCRecvModeRemoveInviteOnly(
+								recvBus.post(new IRCRecvModeRemoveInviteOnly(
 										channel, user, login, hostname));
 							}
 						} else if (atPos == 'm') {
 							if (pn == '+') {
-								bus.post(new IRCRecvModeSetModerated(channel,
-										user, login, hostname));
+								recvBus.post(new IRCRecvModeSetModerated(
+										channel, user, login, hostname));
 							} else {
-								bus.post(new IRCRecvModeRemoveModerated(
+								recvBus.post(new IRCRecvModeRemoveModerated(
 										channel, user, login, hostname));
 							}
 						} else if (atPos == 'p') {
 							if (pn == '+') {
-								bus.post(new IRCRecvModeSetPrivate(channel,
+								recvBus.post(new IRCRecvModeSetPrivate(channel,
 										user, login, hostname));
 							} else {
-								bus.post(new IRCRecvModeRemovePrivate(channel,
-										user, login, hostname));
+								recvBus.post(new IRCRecvModeRemovePrivate(
+										channel, user, login, hostname));
 							}
 						} else if (atPos == 's') {
 							if (pn == '+') {
-								bus.post(new IRCRecvModeSetSecret(channel,
+								recvBus.post(new IRCRecvModeSetSecret(channel,
 										user, login, hostname));
 							} else {
-								bus.post(new IRCRecvModeRemoveSecret(channel,
-										user, login, hostname));
+								recvBus.post(new IRCRecvModeRemoveSecret(
+										channel, user, login, hostname));
 							}
 						}
 					}
@@ -271,8 +289,8 @@ class IRCProtocol extends AbstractExecutionThreadService {
 			} else {
 				// The mode of a user is being changed.
 				User recipient = target.asUser();
-				bus.post(new IRCRecvUserMode(recipient, user, login, hostname,
-						mode));
+				recvBus.post(new IRCRecvUserMode(recipient, user, login,
+						hostname, mode));
 			}
 		}
 
@@ -286,11 +304,11 @@ class IRCProtocol extends AbstractExecutionThreadService {
 		public void onRecvRaw(IRCRecvRaw event) {
 			String line = event.getMessage();
 			if (line.startsWith("PING ")) {
-				bus.post(new IRCRecvServerPing(line.substring(5)));
+				recvBus.post(new IRCRecvServerPing(line.substring(5)));
 				return;
 			}
 			if (line.startsWith("ERROR ")) {
-				bus.post(new IRCRecvError(line.substring(6)));
+				recvBus.post(new IRCRecvError(line.substring(6)));
 				return;
 			}
 
@@ -329,7 +347,8 @@ class IRCProtocol extends AbstractExecutionThreadService {
 											line.indexOf(errorStr,
 													senderInfo.length()) + 4,
 											line.length());
-							bus.post(new IRCRecvServerResponse(code, response));
+							recvBus.post(new IRCRecvServerResponse(code,
+									response));
 							// Return from the method.
 							return;
 						} else {
@@ -340,7 +359,7 @@ class IRCProtocol extends AbstractExecutionThreadService {
 							targetString = token;
 						}
 					} else {
-						bus.post(new IRCRecvUnknown(line));
+						recvBus.post(new IRCRecvUnknown(line));
 						return;
 					}
 
@@ -367,48 +386,52 @@ class IRCProtocol extends AbstractExecutionThreadService {
 				String request = line.substring(line.indexOf(":\u0001") + 2,
 						line.length() - 1);
 				if (request.equals("VERSION")) {
-					bus.post(new IRCRecvVersion(user, login, hostname, target));
+					recvBus.post(new IRCRecvVersion(user, login, hostname,
+							target));
 				} else if (request.startsWith("ACTION ")) {
-					bus.post(new IRCRecvAction(user, login, hostname, target,
-							request.substring(7)));
+					recvBus.post(new IRCRecvAction(user, login, hostname,
+							target, request.substring(7)));
 				} else if (request.startsWith("PING ")) {
-					bus.post(new IRCRecvPing(user, login, hostname, target,
+					recvBus.post(new IRCRecvPing(user, login, hostname, target,
 							request.substring(5)));
 				} else if (request.equals("TIME")) {
-					bus.post(new IRCRecvTime(user, login, hostname, target));
+					recvBus.post(new IRCRecvTime(user, login, hostname, target));
 				} else if (request.equals("FINGER")) {
-					bus.post(new IRCRecvFinger(user, login, hostname, target));
+					recvBus.post(new IRCRecvFinger(user, login, hostname,
+							target));
 				} else if ((tokenizer = new StringTokenizer(request))
 						.countTokens() >= 5
 						&& tokenizer.nextToken().equals("DCC")) {
-					bus.post(new IRCRecvDCC(user, login, hostname, request));
+					recvBus.post(new IRCRecvDCC(user, login, hostname, request));
 				} else {
-					bus.post(new IRCRecvUnknown(line));
+					recvBus.post(new IRCRecvUnknown(line));
 				}
 			} else if (command.equals("PRIVMSG") && target.isChannel()) {
-				bus.post(new IRCRecvChannelMessage(target.asChannel(), user,
-						login, hostname, line.substring(line.indexOf(" :") + 2)));
+				recvBus.post(new IRCRecvChannelMessage(target.asChannel(),
+						user, login, hostname, line.substring(line
+								.indexOf(" :") + 2)));
 			} else if (command.equals("PRIVMSG")) {
-				bus.post(new IRCRecvUserMessage(user, login, hostname, line
+				recvBus.post(new IRCRecvUserMessage(user, login, hostname, line
 						.substring(line.indexOf(" :") + 2)));
 			} else if (command.equals("JOIN")) {
 				Channel channel = target.asChannel();
-				bus.post(new IRCRecvJoin(channel, user, login, hostname));
+				recvBus.post(new IRCRecvJoin(channel, user, login, hostname));
 			} else if (command.equals("PART")) {
 				Channel channel = target.asChannel();
-				bus.post(new IRCRecvPart(channel, user, login, hostname));
+				recvBus.post(new IRCRecvPart(channel, user, login, hostname));
 			} else if (command.equals("NICK")) {
 				User newUser = target.asUser();
-				bus.post(new IRCRecvNickChange(user, login, hostname, newUser));
+				recvBus.post(new IRCRecvNickChange(user, login, hostname,
+						newUser));
 			} else if (command.equals("NOTICE")) {
-				bus.post(new IRCRecvNotice(user, login, hostname, target, line
-						.substring(line.indexOf(" :") + 2)));
+				recvBus.post(new IRCRecvNotice(user, login, hostname, target,
+						line.substring(line.indexOf(" :") + 2)));
 			} else if (command.equals("QUIT")) {
-				bus.post(new IRCRecvQuit(user, login, hostname, line
+				recvBus.post(new IRCRecvQuit(user, login, hostname, line
 						.substring(line.indexOf(" :") + 2)));
 			} else if (command.equals("KICK")) {
 				String recipient = tokenizer.nextToken();
-				bus.post(new IRCRecvKick(target.asChannel(), user, login,
+				recvBus.post(new IRCRecvKick(target.asChannel(), user, login,
 						hostname, recipient,
 						line.substring(line.indexOf(" :") + 2)));
 			} else if (command.equals("MODE")) {
@@ -417,16 +440,17 @@ class IRCProtocol extends AbstractExecutionThreadService {
 				if (mode.startsWith(":")) {
 					mode = mode.substring(1);
 				}
-				bus.post(new IRCRecvMode(target, user, login, hostname, mode));
+				recvBus.post(new IRCRecvMode(target, user, login, hostname,
+						mode));
 			} else if (command.equals("TOPIC")) {
-				bus.post(new IRCRecvTopic(target.asChannel(), line
+				recvBus.post(new IRCRecvTopic(target.asChannel(), line
 						.substring(line.indexOf(" :") + 2), user, System
 						.currentTimeMillis(), true));
 			} else if (command.equals("INVITE")) {
-				bus.post(new IRCRecvInvite(target, user, login, hostname, line
-						.substring(line.indexOf(" :") + 2)));
+				recvBus.post(new IRCRecvInvite(target, user, login, hostname,
+						line.substring(line.indexOf(" :") + 2)));
 			} else {
-				bus.post(new IRCRecvUnknown(line));
+				recvBus.post(new IRCRecvUnknown(line));
 			}
 		}
 
@@ -458,7 +482,7 @@ class IRCProtocol extends AbstractExecutionThreadService {
 				}
 				String topic = response.substring(colon + 1);
 
-				bus.post(new IRCRecvChannelInfo(channel, userCount, topic));
+				recvBus.post(new IRCRecvChannelInfo(channel, userCount, topic));
 			} else if (code == Codes.RPL_TOPIC) {
 				// This is topic information about a channel we've just joined.
 				int firstSpace = response.indexOf(' ');
@@ -468,7 +492,7 @@ class IRCProtocol extends AbstractExecutionThreadService {
 						firstSpace + 1, secondSpace));
 				String topic = response.substring(colon + 1);
 
-				bus.post(new IRCRecvTopicCode(channel, topic));
+				recvBus.post(new IRCRecvTopicCode(channel, topic));
 			} else if (code == Codes.RPL_TOPICINFO) {
 				StringTokenizer tokenizer = new StringTokenizer(response);
 				tokenizer.nextToken();
@@ -481,7 +505,7 @@ class IRCProtocol extends AbstractExecutionThreadService {
 					// Stick with the default value of zero.
 				}
 
-				bus.post(new IRCRecvTopicInfo(channel, setBy, date));
+				recvBus.post(new IRCRecvTopicInfo(channel, setBy, date));
 			} else if (code == Codes.RPL_NAMREPLY) {
 				// This is a list of nicks in a channel that we've just joined.
 				int channelEndIndex = response.indexOf(" :");
@@ -497,7 +521,7 @@ class IRCProtocol extends AbstractExecutionThreadService {
 				while (tokenizer.hasMoreTokens()) {
 					String nickname = tokenizer.nextToken();
 					String prefix = "";
-					final String modes = "&@%+.";
+					final String modes = "~&@%+.";
 					char firstChar = nickname.charAt(0);
 					if (modes.indexOf(firstChar) != -1) {
 						prefix = "" + firstChar;
@@ -506,13 +530,13 @@ class IRCProtocol extends AbstractExecutionThreadService {
 					builder.put(handles.getUser(nickname), prefix);
 				}
 
-				bus.post(new IRCRecvNameReply(channel, builder.build()));
+				recvBus.post(new IRCRecvNameReply(channel, builder.build()));
 			} else if (code == Codes.RPL_ENDOFNAMES) {
 				// This is the end of a NAMES list, so we know that we've got
 				// the full list of users in the channel that we just joined.
 				Channel channel = handles.getChannel(response.substring(
 						response.indexOf(' ') + 1, response.indexOf(" :")));
-				bus.post(new IRCRecvEndOfNames(channel));
+				recvBus.post(new IRCRecvEndOfNames(channel));
 			}
 		}
 
@@ -528,22 +552,8 @@ class IRCProtocol extends AbstractExecutionThreadService {
 					+ MY_VERSION + "\u0001");
 		}
 
-		@Subscribe
-		public void onSend(IRCSendEvent event) {
-			if (event instanceof IRCSendMessage && mute) {
-				return;
-			}
-			try {
-				out.write(event.getRawMessage() + "\r\n");
-				out.flush();
-			} catch (IOException e) {
-				e.printStackTrace();
-
-			}
-		}
-
 		private void postRawMessage(String rawMessage) {
-			bus.post(new IRCSendRaw(rawMessage));
+			recvBus.post(new IRCSendRaw(rawMessage));
 		}
 	}
 
@@ -551,8 +561,10 @@ class IRCProtocol extends AbstractExecutionThreadService {
 	public static final String MY_FINGER = "That tickles!";
 
 	private final Subscriber subscriber = new Subscriber();
+	private final SendSubscriber sendSubscriber = new SendSubscriber();
 
-	private final EventBus bus;
+	private final EventBus sendBus;
+	private final EventBus recvBus;
 	private final IRCHandles handles;
 	private final IRCState state;
 	private final NetworkHandler networkHandler;
@@ -568,9 +580,10 @@ class IRCProtocol extends AbstractExecutionThreadService {
 	public static final long RECV_TIMEOUT = 1000 * 60 * 5;
 
 	@Inject
-	IRCProtocol(EventBus eventBus, IRCHandles handles, IRCState state,
-			NetworkHandler networkHandler) {
-		this.bus = eventBus;
+	IRCProtocol(@Named("recvBus") EventBus recvBus, EventBus sendBus,
+			IRCHandles handles, IRCState state, NetworkHandler networkHandler) {
+		this.recvBus = recvBus;
+		this.sendBus = sendBus;
 		this.handles = handles;
 		this.state = state;
 		this.networkHandler = networkHandler;
@@ -590,16 +603,17 @@ class IRCProtocol extends AbstractExecutionThreadService {
 			IOException, IRCBadServerResponse {
 
 		try (EventMonitor<IRCRecvServerResponse> monitor = new EventMonitor<>(
-				bus, IRCRecvServerResponse.class)) {
+				recvBus, IRCRecvServerResponse.class)) {
 
 			networkHandler.connect(server.getHost(), server.getPort());
 			String password = server.getPassword();
 			if (password != null && !password.equals("")) {
-				bus.post(new IRCSendRaw("PASS " + password));
+				recvBus.post(new IRCSendRaw("PASS " + password));
 			}
 			User myUser = server.getUser();
-			bus.post(new IRCSendRaw("NICK " + myUser));
-			bus.post(new IRCSendRaw("USER " + myUser + " 8 * :" + MY_VERSION));
+			recvBus.post(new IRCSendRaw("NICK " + myUser));
+			recvBus.post(new IRCSendRaw("USER " + myUser + " 8 * :"
+					+ MY_VERSION));
 
 			monitor.pollEach(new EventVisitor<IRCRecvServerResponse>() {
 				@Override
@@ -620,7 +634,7 @@ class IRCProtocol extends AbstractExecutionThreadService {
 
 			this.server = Optional.of(server);
 
-			bus.post(new IRCServerConnect(server));
+			recvBus.post(new IRCServerConnect(server));
 		}
 	}
 
@@ -655,7 +669,8 @@ class IRCProtocol extends AbstractExecutionThreadService {
 		while (isRunning()) {
 			try {
 				String readLine = in.readLine();
-				bus.post(new IRCRecvRaw(readLine));
+				IRCRecvRaw event = new IRCRecvRaw(readLine);
+				recvBus.post(event);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -665,13 +680,15 @@ class IRCProtocol extends AbstractExecutionThreadService {
 	@Override
 	protected void shutDown() throws Exception {
 		super.shutDown();
-		bus.unregister(subscriber);
+		recvBus.unregister(subscriber);
+		sendBus.unregister(sendSubscriber);
 	}
 
 	@Override
 	protected void startUp() throws Exception {
 		super.startUp();
-		bus.register(subscriber);
+		recvBus.register(subscriber);
+		sendBus.register(sendSubscriber);
 	}
 
 	public void unmute() {
