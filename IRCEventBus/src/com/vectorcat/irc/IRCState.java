@@ -119,8 +119,11 @@ public class IRCState {
 
 	private void removeFromChannel(Channel channel, User user) {
 		channelUsers.remove(channel, user);
+		userChannels.remove(user, channel);
 		if (user.equals(getMyUser())) {
-			channelUsers.removeAll(channel);
+			for (User otherUser : channelUsers.removeAll(channel)) {
+				userChannels.remove(otherUser, channel);
+			}
 		}
 	}
 
